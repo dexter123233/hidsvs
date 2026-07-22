@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zavod — Constrained Structured Extraction</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a; color: #e2e8f0; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .container { max-width: 800px; width: 100%; padding: 2rem; }
+    header {
+      display: flex; align-items: center; gap: .75rem; margin-bottom: 2rem;
+    }
+    header h1 { font-size: 1.75rem; font-weight: 700; background: linear-gradient(135deg, #818cf8, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    header span { font-size: .85rem; color: #64748b; background: #1e293b; padding: .25rem .75rem; border-radius: 999px; }
+    .card {
+      background: #1e293b; border: 1px solid #334155; border-radius: .75rem;
+      padding: 1.5rem; margin-bottom: 1rem;
+    }
+    .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: .75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; }
+    textarea {
+      width: 100%; min-height: 150px; background: #0f172a; border: 1px solid #334155;
+      border-radius: .5rem; color: #e2e8f0; padding: 1rem; font-size: .9rem;
+      font-family: 'SF Mono', 'Fira Code', monospace; resize: vertical;
+    }
+    textarea:focus { outline: none; border-color: #6366f1; }
+    label { font-size: .85rem; color: #94a3b8; margin-bottom: .5rem; display: block; }
+    button {
+      background: linear-gradient(135deg, #6366f1, #818cf8); color: #fff;
+      border: none; border-radius: .5rem; padding: .75rem 2rem;
+      font-size: 1rem; font-weight: 600; cursor: pointer; transition: transform .15s;
+    }
+    button:hover { transform: translateY(-1px); }
+    button:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .toolbar { display: flex; gap: .75rem; margin-top: 1rem; align-items: center; }
+    .status-badge {
+      display: inline-flex; align-items: center; gap: .35rem;
+      padding: .2rem .7rem; border-radius: 999px; font-size: .75rem; font-weight: 600;
+    }
+    .status-badge.success { background: #065f46; color: #6ee7b7; }
+    .status-badge.processing { background: #1e3a5f; color: #93c5fd; }
+    .status-badge.pass { background: #065f46; color: #6ee7b7; }
+    .status-badge.fail { background: #7f1d1d; color: #fca5a5; }
+    pre {
+      background: #0f172a; padding: 1rem; border-radius: .5rem;
+      font-size: .8rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+      max-height: 400px; overflow-y: auto;
+    }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+    .metric { background: #0f172a; padding: .75rem; border-radius: .5rem; }
+    .metric .label { font-size: .7rem; color: #64748b; text-transform: uppercase; letter-spacing: .04em; }
+    .metric .value { font-size: 1rem; font-weight: 600; margin-top: .25rem; }
+    .spinner { width: 1rem; height: 1rem; border: 2px solid #6366f1; border-top-color: transparent; border-radius: 50%; animation: spin .6s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .stats-row { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .pill { background: #0f172a; padding: .25rem .6rem; border-radius: 4px; font-size: .75rem; color: #94a3b8; }
+    .json-key { color: #818cf8; }
+    .json-str { color: #6ee7b7; }
+    .json-num { color: #fbbf24; }
+    .json-bool { color: #f472b6; }
+    .error { color: #fca5a5; background: #7f1d1d; padding: .75rem; border-radius: .5rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Zavod</h1>
+      <span>Constrained Extraction</span>
+    </header>
+
+    <div class="card">
+      <h2>Input Text</h2>
+      <textarea id="inputText" placeholder="Paste resume or document text here...">Jane Smith is a Senior ML Engineer at TechCorp (2018-2024). She has deep expertise in Python, Machine Learning, NLP, FastAPI, and PostgreSQL. She holds an M.Sc. in Computer Science from Stanford University and is certified as an AWS Certified ML Specialty and Google Professional Data Engineer. Currently serving as TechLead managing a team of 5 engineers.</textarea>
+      <div class="toolbar">
+        <button id="extractBtn">Run Extraction</button>
+        <span id="status"></span>
+      </div>
+    </div>
+
+    <div id="result" style="display:none;">
+      <div class="card">
+        <h2>Extraction Result</h2>
+        <pre id="jsonOutput"></pre>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>Governance</h2>
+          <div id="governance"></div>
+        </div>
+        <div class="card">
+          <h2>Bias Audit</h2>
+          <div id="biasAudit"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Explainability</h2>
+        <div id="explainability"></div>
+      </div>
+
+      <div class="card">
+        <h2>Consent & Compliance</h2>
+        <div id="consent"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const input = document.getElementById('inputText');
+    const btn = document.getElementById('extractBtn');
+    const status = document.getElementById('status');
+    const resultDiv = document.getElementById('result');
+
+    function syntaxHighlight(json) {
+      return json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+        .replace(/: "([^"]+)"/g, ': <span class="json-str">"$1"</span>')
+        .replace(/: (\d+\.?\d*)/g, ': <span class="json-num">$1</span>')
+        .replace(/: (true|false)/g, ': <span class="json-bool">$1</span>');
+    }
+
+    btn.addEventListener('click', async () => {
+      const text = input.value.trim();
+      if (!text) return;
+
+      btn.disabled = true;
+      status.className = 'status-badge processing';
+      status.innerHTML = '<span class="spinner"></span> Processing...';
+
+      try {
+        const res = await fetch('/api/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data = await res.json();
+        status.className = 'status-badge success';
+        status.textContent = `✓ ${data.status} (${data.processing_time_ms}ms) | Trace: ${data.trace_id}`;
+
+        document.getElementById('jsonOutput').innerHTML = syntaxHighlight(JSON.stringify(data.extraction, null, 2));
+
+        const gov = data.governance;
+        document.getElementById('governance').innerHTML = `
+          <div class="stats-row">
+            <div class="pill">Schema: ${data.schema.version}</div>
+            <div class="pill">${gov.schema_promoted ? 'Promoted' : 'Locked'}</div>
+            <div class="pill">Lock: ${gov.lock_type}</div>
+            <div class="pill">Cooldown: ${gov.cooldown_remaining_seconds}s</div>
+          </div>
+        `;
+
+        const audit = data.bias_audit;
+        const auditStatus = audit.status === 'PASS' ? 'pass' : 'fail';
+        document.getElementById('biasAudit').innerHTML = `
+          <div class="grid" style="margin-top:0;">
+            <div class="metric"><div class="label">AIR</div><div class="value">${audit.adverse_impact_ratio}</div></div>
+            <div class="metric"><div class="label">Differential Validity</div><div class="value">${audit.differential_validity}</div></div>
+            <div class="metric"><div class="label">Cochran Sample</div><div class="value">${audit.cochran_sample_size_required}</div></div>
+            <div class="metric"><div class="label">Confidence</div><div class="value">${audit.confidence_interval * 100}%</div></div>
+          </div>
+          <div style="margin-top:.5rem;"><span class="status-badge ${auditStatus}">${audit.status}</span></div>
+        `;
+
+        document.getElementById('explainability').innerHTML = `
+          <p style="font-size:.9rem;margin-bottom:.75rem;line-height:1.5;">${data.explainability.justification}</p>
+          <div class="stats-row">
+            ${Object.entries(data.explainability.evidence_mapping).map(([k, v]) =>
+              `<div class="pill">${k}: ${v.source} (${(v.confidence * 100).toFixed(0)}%)</div>`
+            ).join('')}
+          </div>
+        `;
+
+        const consent = data.consent;
+        document.getElementById('consent').innerHTML = `
+          <div class="grid" style="margin-top:0;">
+            <div class="metric"><div class="label">Consent Status</div><div class="value" style="color:#6ee7b7;">${consent.status}</div></div>
+            <div class="metric"><div class="label">Version</div><div class="value">${consent.version}</div></div>
+            <div class="metric"><div class="label">Timestamp</div><div class="value" style="font-size:.8rem;">${consent.timestamp}</div></div>
+            <div class="metric"><div class="label">Art. 13 Notice</div><div class="value" style="color:#6ee7b7;">${consent.article_13_notice_delivered ? 'Delivered' : 'Pending'}</div></div>
+          </div>
+        `;
+
+        resultDiv.style.display = 'block';
+      } catch (err) {
+        status.className = 'status-badge fail';
+        status.textContent = `✗ Error: ${err.message}`;
+      }
+
+      btn.disabled = false;
+    });
+  </script>
+</body>
+</html>
