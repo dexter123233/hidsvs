@@ -22,6 +22,10 @@ The system is designed as a set of microservices adhering to the **12-Factor App
 - `Output Assembler`: Generates final formatted output and explainability reports.
 - `Compliance API`: Centralized access for audit trails and consent logs.
 
+## 🌐 Live Demo
+
+The PoC app is deployed on Vercel: [https://zavod-extraction-poc.vercel.app](https://zavod-extraction-poc.vercel.app)
+
 ## 🛠️ Setup
 
 1. Clone the repository.
